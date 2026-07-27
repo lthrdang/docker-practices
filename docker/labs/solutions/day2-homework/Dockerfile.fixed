@@ -1,0 +1,87 @@
+# Reference solution for the Day 2 homework.
+#
+# Read this only after you have your own numbers. Your version does not have to
+# match this one -- if you hit the targets and can defend each choice, you are
+# right.
+
+# FIX 1 + 2: pinned version, and a slim base instead of the full Debian image.
+#
+# python:latest is a lottery -- the same Dockerfile built next month is a
+# different program. python:3.13-slim is pinned and drops ~800 MB of toolchain
+# and documentation you never run.
+#
+# Why -slim rather than -alpine here: Alpine uses musl instead of glibc, and
+# Python wheels are built against glibc. On Alpine, pip often falls back to
+# compiling from source -- which is slower to build and can end up LARGER.
+# Alpine is not automatically the small choice for Python. Measure, do not
+# assume.
+FROM python:3.13-slim
+
+# FIX 3: no apt-get at all.
+#
+# The original installed curl, vim, git and build-essential. None of them are
+# needed to run a Flask app. build-essential alone is several hundred MB, and
+# every tool you ship is a tool an attacker inherits.
+#
+# If you DID need apt packages, the correct shape is one RUN with the cleanup
+# in the same layer:
+#
+#   RUN apt-get update \
+#       && apt-get install -y --no-install-recommends curl \
+#       && rm -rf /var/lib/apt/lists/*
+#
+# The cleanup must be in the same RUN. In a later layer it frees nothing.
+
+# FIX 4: the secret is gone.
+#
+# ENV SECRET_KEY=... is baked into the image and visible to anyone with it:
+#
+#   docker history --no-trunc <image>
+#   docker inspect <image> --format '{{json .Config.Env}}'
+#
+# Pass it at runtime instead: docker run -e SECRET_KEY=... , or an env_file,
+# or Docker secrets. Day 5 covers this properly.
+ENV APP_ENV=production \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+WORKDIR /app
+
+# FIX 5 + 6: manifest first (cache ordering), and COPY instead of ADD.
+#
+# requirements.txt changes rarely; app.py changes constantly. Copying the
+# manifest alone and installing before the source means editing app.py no
+# longer reinstalls Flask.
+#
+# ADD also auto-extracts tarballs and fetches URLs -- surprising behaviour
+# nobody wants here. COPY does one thing.
+COPY requirements.txt ./
+
+# FIX 7: --no-cache-dir.
+#
+# pip's download cache is useless in an image and just adds weight to the
+# layer. Same principle as rm -rf /var/lib/apt/lists/*.
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY app.py ./
+
+# FIX 8: non-root.
+#
+# The original ran as root. Containers run as root by default, and root in the
+# container is uid 0 against the host kernel. One line removes that.
+RUN useradd --create-home --uid 1000 appuser \
+    && chown -R appuser:appuser /app
+USER appuser
+
+EXPOSE 5000
+
+# FIX 9: exec form.
+#
+# Shell form ran /bin/sh -c "gunicorn ...", making sh PID 1. sh does not
+# forward SIGTERM, so `docker stop` waited the full 10-second grace period and
+# then SIGKILLed. Exec form makes gunicorn PID 1 and it shuts down in under a
+# second.
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "app:app"]
+
+# FIX 10 is not in this file: the project had no .dockerignore.
+# See .dockerignore next to this file.

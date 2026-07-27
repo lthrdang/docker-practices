@@ -1,0 +1,75 @@
+# Step 3 — startup ordering that actually works.
+#
+# THE PROBLEM WITH 02-db.yaml
+#
+# `depends_on: [postgres]` only waits for the postgres CONTAINER TO START. It
+# does NOT wait for Postgres to be ready to accept connections. Postgres takes
+# a few seconds to initialise -- on first run, while it creates the database,
+# considerably longer.
+#
+# So the API starts, tries to connect, and fails. On a good day it retries and
+# recovers. On a bad day it crash-loops, and you get a bug that only appears on
+# a cold start, only on slower machines, and never on yours.
+#
+# This is the single most common Compose bug. Try it:
+#
+#   docker compose -f 03-healthcheck.yaml down -v
+#   docker compose -f 03-healthcheck.yaml up      # foreground, watch the order
+#
+# Watch postgres report "healthy" BEFORE the api container is created at all.
+
+services:
+  api:
+    build: ../app-api
+    ports:
+      - "8080:3000"
+    environment:
+      PGHOST: postgres
+      PGUSER: app
+      PGPASSWORD: app
+      PGDATABASE: app
+    depends_on:
+      postgres:
+        # THE FIX. Wait for postgres's healthcheck to pass, not merely for its
+        # container to exist.
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # pg_isready ships with the postgres image and answers exactly the right
+      # question: is the server accepting connections?
+      #
+      # A healthcheck must test the thing that matters. `CMD ["true"]` would
+      # also "pass" and would tell you nothing.
+      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      interval: 5s        # how often to run it
+      timeout: 3s         # how long to wait for an answer
+      retries: 5          # consecutive failures before "unhealthy"
+      start_period: 10s   # grace window: failures here do not count against
+                          # retries. Give slow starters room without making
+                          # `retries` so high that a real failure takes minutes
+                          # to detect.
+
+volumes:
+  pgdata:
+
+# LIVENESS vs READINESS -- the distinction that makes healthchecks useful
+#
+# The API image's own HEALTHCHECK calls /health, not /ready. On purpose.
+#
+#   /health  -- is this process alive?  Depends on nothing else.
+#   /ready   -- can it serve traffic?   Depends on Postgres and Redis.
+#
+# If the API's healthcheck called /ready, then a Postgres restart would mark a
+# perfectly healthy API as unhealthy -- and anything watching health would
+# restart it. One dependency blipping would take down the whole stack.
+#
+# Rule: a healthcheck answers "should I be restarted?", not "is everything I
+# depend on working?"

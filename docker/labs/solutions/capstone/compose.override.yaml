@@ -1,0 +1,40 @@
+# Developer conveniences. Merged automatically by a bare `docker compose up`.
+#
+# Everything here would be wrong in production, which is exactly why it is in a
+# separate file. R7.
+
+services:
+  api:
+    ports:
+      - "3000:3000"          # reach the API without going through nginx
+    volumes:
+      - ../../app-api:/app   # R7: live source, no rebuild on edit
+      - /app/node_modules    # R7: THE LINE PEOPLE FORGET.
+                             #
+                             # The bind mount above hides the image's entire
+                             # /app, including the node_modules that
+                             # `npm install` produced at build time -- bind
+                             # mounts never seed. Without this, the container
+                             # dies with "Cannot find module 'express'".
+                             #
+                             # This anonymous volume is empty, so it IS seeded
+                             # from the image, and being mounted deeper it wins.
+      - shared-data:/data
+    command: ["node", "--watch", "server.js"]   # restart on file change --
+                                                # only works if the code lives
+                                                # in ~ and not /mnt/c
+    environment:
+      NODE_ENV: development
+
+  worker:
+    volumes:
+      - ../../app-worker:/app
+      - shared-data:/data
+
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"   # attach a GUI client from Windows.
+                                #
+                                # 127.0.0.1 is load-bearing: this machine only.
+                                # "5432:5432" would listen on 0.0.0.0 and hand
+                                # your database to the whole LAN.

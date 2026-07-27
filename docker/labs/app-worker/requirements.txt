@@ -1,0 +1,7 @@
+# Pinned on purpose.
+#
+# `redis` unpinned means your image changes meaning over time: the same
+# Dockerfile, built twice a month apart, produces two different programs. Pin
+# dependencies so a rebuild is reproducible -- this is the same argument as
+# "don't use :latest for base images".
+redis==5.2.1

@@ -1,0 +1,26 @@
+# Line endings are pinned here on purpose.
+#
+# Windows Git checks out text files with CRLF by default. A shell script with
+# CRLF endings fails inside a Linux container with a misleading error:
+#
+#   exec /app/entrypoint.sh: no such file or directory
+#
+# ...because Linux looks for an interpreter literally named "/bin/sh\r".
+#
+# See WSL2-NOTES.md #2. Day 2 makes you trigger this on purpose so you
+# recognise it forever.
+
+* text=auto eol=lf
+
+# Shell scripts and Dockerfiles must never be CRLF, no exceptions.
+*.sh      text eol=lf
+Dockerfile* text eol=lf
+*.yaml    text eol=lf
+*.yml     text eol=lf
+*.conf    text eol=lf
+
+# Binary files must not be touched at all.
+*.png     binary
+*.jpg     binary
+*.gz      binary
+*.tar     binary

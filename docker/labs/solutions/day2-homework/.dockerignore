@@ -1,0 +1,21 @@
+# FIX 10: the missing file.
+#
+# Without this, `COPY . .` (or the original's `ADD . /app`) ships everything in
+# the directory into the image -- including .env, .git, and any virtualenv.
+# Layers are permanent, so a secret that lands here cannot be removed later.
+
+__pycache__
+*.pyc
+.venv
+venv
+
+.env
+.env.*
+*.pem
+*.key
+
+.git
+.gitignore
+Dockerfile*
+.dockerignore
+*.md

@@ -1,0 +1,56 @@
+# Step 2 — add a database, and data that survives.
+#
+#   docker compose -f 02-db.yaml up -d
+#   curl -X POST -H 'content-type: application/json' -d '{"name":"alice"}' localhost:8080/users
+#   curl localhost:8080/users
+#   docker compose -f 02-db.yaml down          # note: NO -v
+#   docker compose -f 02-db.yaml up -d
+#   curl localhost:8080/users                  # alice is still here
+#
+# New here: a second service, environment variables, and a named volume.
+
+services:
+  api:
+    build: ../app-api
+    ports:
+      - "8080:3000"
+    environment:
+      # `postgres` is the SERVICE NAME above, resolved by Docker's embedded DNS
+      # on the network Compose created. Not a hostname anyone configured.
+      # This is Day 4's service discovery, and it is why you must never
+      # hard-code container IPs.
+      PGHOST: postgres
+      PGUSER: app
+      PGPASSWORD: app
+      PGDATABASE: app
+    depends_on:
+      # Start postgres first. Read the warning in 03-healthcheck.yaml before
+      # you trust this to mean anything more than that -- it does not.
+      - postgres
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    volumes:
+      # Day 3. Without this, the postgres image's own `VOLUME` declaration
+      # means Docker creates a fresh ANONYMOUS volume on every `up`, and
+      # `down` orphans it. The data is not deleted -- it is stranded in a
+      # volume named with 64 hex characters.
+      - pgdata:/var/lib/postgresql/data
+
+    # Deliberately NOT published. Nothing outside this compose project needs to
+    # reach Postgres directly. Adding `ports: - "5432:5432"` here would expose
+    # your database to everything that can reach your machine.
+
+# Top-level declaration. A named volume must be declared here before a service
+# can reference it.
+volumes:
+  pgdata:
+
+# `docker compose down`     removes containers and networks, KEEPS volumes.
+# `docker compose down -v`  also DELETES the volumes.
+#
+# Learn the difference now. `-v` on the wrong project deletes a database.

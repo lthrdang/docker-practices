@@ -1,0 +1,84 @@
+# Day 3 homework -- reference solution.
+#
+# Read labs/solutions/day3-homework/README.md alongside this for the reasoning.
+
+services:
+  api:
+    build: ../../labs/app-api
+    ports:
+      - "8080:3000"
+    environment:
+      PGHOST: postgres
+      PGUSER: app
+      PGPASSWORD: app
+      PGDATABASE: app
+      REDIS_URL: redis://redis:6379
+      DATA_DIR: /data
+    # FIX 4: `user: root` removed.
+    #
+    # It was added to silence a "permission denied" that came from the /data
+    # volume mounting root-owned. Running the whole application as root to
+    # avoid one chown is trading a real security property for a shortcut. The
+    # image already runs as `node` (uid 1000); the correct fix is to make the
+    # volume writable by that user -- see the worker's Dockerfile, which
+    # pre-creates /data with the right owner so an empty volume inherits it.
+    volumes:
+      # Bind mount for hot reload: source edits appear without a rebuild.
+      - ../../labs/app-api:/app
+      # FIX 1: shield node_modules from the bind mount above.
+      #
+      # The bind mount hides the image's entire /app, including the
+      # node_modules that `npm install` produced at build time -- bind mounts
+      # never seed. Result: "Cannot find module 'express'" and a crash loop.
+      #
+      # This anonymous volume is empty, so it IS seeded from the image, and
+      # because it is mounted deeper than /app it wins there.
+      - /app/node_modules
+      # FIX 2 (half): the same volume the worker uses. See below.
+      - shared-data:/data
+    depends_on:
+      - postgres
+      - redis
+
+  worker:
+    build: ../../labs/app-worker
+    environment:
+      REDIS_URL: redis://redis:6379
+      DATA_DIR: /data
+    volumes:
+      # FIX 2 (other half): the worker had NO mount at /data at all.
+      #
+      # Its output was going into the container's writable layer -- discarded
+      # on every recreate, and invisible to the API, which was mounting a
+      # different volume. Two containers only share a directory if they mount
+      # the SAME volume.
+      - shared-data:/data
+    depends_on:
+      - redis
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    volumes:
+      # FIX 3: the database had no volume.
+      #
+      # Postgres declares VOLUME /var/lib/postgresql/data, so Docker was
+      # creating a fresh ANONYMOUS volume on every `up`. `docker compose down`
+      # removed the container; the anonymous volume was orphaned; `up` made a
+      # new empty one. The data was never technically deleted -- it was
+      # stranded in a volume nobody could name.
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    # Redis here is a cache and a job queue in transit. Losing it on restart is
+    # acceptable, so no volume is deliberate rather than an oversight. If it
+    # held anything that mattered, it would need one too -- and that is a
+    # decision to make on purpose, not by omission.
+
+volumes:
+  pgdata:
+  shared-data:

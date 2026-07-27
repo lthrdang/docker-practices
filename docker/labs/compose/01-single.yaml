@@ -1,0 +1,48 @@
+# Step 1 — the smallest useful compose file.
+#
+# Equivalent to:
+#   docker build -t <something> ../app-api
+#   docker run -d -p 8080:3000 <something>
+#
+# Run it:
+#   docker compose -f 01-single.yaml up -d
+#   curl localhost:8080/health
+#   docker compose -f 01-single.yaml down
+#
+# /health answers immediately. /ready reports failure, because there is no
+# Postgres and no Redis yet:
+#
+#   {"ready":false,"checks":{
+#      "postgres":"getaddrinfo ENOTFOUND postgres",
+#      "redis":"redis timed out after 3000ms"}}
+#
+# Note that ENOTFOUND -- that is Day 4's cause #1 (the name does not resolve
+# because nothing by that name exists on this network). The app is alive but
+# not ready, and it can tell you which dependency is missing. That distinction
+# is the whole reason it has two endpoints.
+
+services:
+  api:
+    # `build` points at a directory containing a Dockerfile. Use `image:`
+    # instead when you want a prebuilt image from a registry. Using both means
+    # "build this, and tag the result with that name".
+    build: ../app-api
+
+    # HOST:CONTAINER, exactly as with -p. Left is the host, right is the
+    # container -- Day 4, and it does not change here.
+    ports:
+      - "8080:3000"
+
+# Things worth noticing about what you did NOT have to write:
+#
+#   * No `docker network create`. Compose makes a network for this project
+#     automatically and puts every service on it. Check after `up`:
+#         docker network ls | grep compose
+#
+#   * No container name. Compose derives one:
+#         <project>-<service>-<index>      e.g. compose-api-1
+#     The project name defaults to the directory name.
+#
+#   * No --network-alias. The SERVICE NAME (`api`) is automatically a DNS name
+#     on that network. That is the single most useful thing Compose does, and
+#     it is exactly the Day 4 mechanism -- Compose just sets it up for you.

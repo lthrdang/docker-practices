@@ -1,0 +1,2 @@
+# Never commit the real one. Commit .env.example instead.
+.env

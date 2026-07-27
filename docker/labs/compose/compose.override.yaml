@@ -1,0 +1,69 @@
+# Development overrides.
+#
+# Compose automatically merges `compose.yaml` with `compose.override.yaml` when
+# you run a bare `docker compose up`. Base file = what is true everywhere;
+# override = what is only true on a developer's machine.
+#
+# Because our base files are numbered rather than named `compose.yaml`, use it
+# explicitly:
+#
+#   docker compose -f 05-final.yaml -f compose.override.yaml up -d
+#
+# Later files win. Lists like `ports:` are REPLACED, not appended; scalars are
+# overwritten; `volumes:` entries are merged by container path.
+#
+# Check the result before trusting it:
+#   docker compose -f 05-final.yaml -f compose.override.yaml config
+
+services:
+  api:
+    # Publish the API directly so you can hit it without going through nginx.
+    # Convenient in development, and exactly what you do NOT want in
+    # production -- which is the reason it lives in an override file.
+    ports:
+      - "3000:3000"
+
+    volumes:
+      # Bind mount your source into the container. Edit on the host, the
+      # container sees it immediately -- no rebuild.
+      - ../app-api:/app
+
+      # THE LINE PEOPLE FORGET. Day 3.
+      #
+      # The bind mount above hides the image's entire /app, including the
+      # node_modules that `npm install` produced at build time. Bind mounts
+      # never seed, so nothing replaces them, and the container dies with
+      # "Cannot find module 'express'".
+      #
+      # This anonymous volume is empty, so it IS seeded from the image --
+      # restoring exactly the node_modules the build created -- and because it
+      # is mounted deeper than /app it takes precedence there.
+      - /app/node_modules
+
+      - shared-data:/data
+
+    # node --watch restarts the process when a file changes. It only works if
+    # the file events actually reach Linux -- which is why your code must live
+    # in ~ and not /mnt/c. See WSL2-NOTES.md #1.
+    command: ["node", "--watch", "server.js"]
+
+    environment:
+      NODE_ENV: development
+
+  worker:
+    volumes:
+      - ../app-worker:/app
+      - shared-data:/data
+
+  postgres:
+    # Publish Postgres so you can attach a GUI client (DBeaver, pgAdmin,
+    # TablePlus) from Windows.
+    #
+    # Bound to 127.0.0.1 on purpose: reachable from this machine only, not from
+    # anything else on the network. `"5432:5432"` would listen on 0.0.0.0 and
+    # expose your database to the whole LAN.
+    #
+    # In an override file this is a reasonable convenience. In the base file it
+    # would be a mistake.
+    ports:
+      - "127.0.0.1:5432:5432"

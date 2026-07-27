@@ -1,0 +1,53 @@
+# This stack has FOUR storage-related problems.
+#
+# Everything wrong with it was covered in Day 3, except one line that is about
+# who the process runs as -- which was Day 2, and which someone here has
+# "fixed" the lazy way.
+#
+# You have not been taught Compose yet. You do not need it. Read the volumes:
+# entries as the same source:destination pairs you have been typing after -v
+# all day, and read depends_on as "start this one first".
+
+services:
+  api:
+    build: ../../labs/app-api
+    ports:
+      - "8080:3000"
+    environment:
+      PGHOST: postgres
+      PGUSER: app
+      PGPASSWORD: app
+      PGDATABASE: app
+      REDIS_URL: redis://redis:6379
+      DATA_DIR: /data
+    # Someone added this because the container was getting "permission denied".
+    # It made the error go away.
+    user: root
+    volumes:
+      # Bind mount for hot reload, so source edits appear without a rebuild.
+      - ./../../labs/app-api:/app
+      - apidata:/data
+    depends_on:
+      - postgres
+      - redis
+
+  worker:
+    build: ../../labs/app-worker
+    environment:
+      REDIS_URL: redis://redis:6379
+      DATA_DIR: /data
+    depends_on:
+      - redis
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+
+  redis:
+    image: redis:7-alpine
+
+volumes:
+  apidata:

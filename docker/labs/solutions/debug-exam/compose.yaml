@@ -1,0 +1,127 @@
+# Debug exam -- reference solution. Six fixes, marked FIX 1..6.
+#
+# Copy into the debug-exam directory to run it:
+#   cp ../../labs/solutions/debug-exam/compose.yaml .
+#   cp ../../labs/solutions/debug-exam/.env.example .env
+
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      # FIX 3: was "8080:8080".
+      #
+      # The PORTS column looked healthy -- 0.0.0.0:8080->8080/tcp -- but nginx
+      # listens on 80, so Docker was forwarding to a port nothing was on. The
+      # right-hand number must match what the process actually binds.
+      #   docker compose exec nginx ss -tln     shows :80
+      - "8080:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - frontend
+    depends_on:
+      api:
+        condition: service_healthy
+
+  api:
+    build: ../../labs/app-api
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER}
+      # FIX 4: was the literal PGPASSWORD: SuperSecret123.
+      #
+      # The only defect with NO runtime symptom -- the stack worked fine with
+      # it. A committed secret is in the git history forever, and rotating it
+      # is the only real remedy. Found by reading, not by testing.
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379
+      DATA_DIR: /data
+    volumes:
+      - ../../labs/app-api:/app
+      # FIX 6: this line was missing.
+      #
+      # The bind mount above hid the image's entire /app, including the
+      # node_modules npm install produced at build time -- bind mounts never
+      # seed. The API crash-looped with "Cannot find module 'express'".
+      #
+      # This anonymous volume is empty, so it IS seeded from the image, and
+      # being mounted deeper it takes precedence there.
+      - /app/node_modules
+      - shared-data:/data
+    networks:
+      - frontend
+      - backend
+    depends_on:
+      # FIX 2 (half): was a plain list, which waits only for the container to
+      # START. See the healthcheck on postgres below.
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: ../../labs/app-worker
+    environment:
+      REDIS_URL: redis://redis:6379
+      DATA_DIR: /data
+    volumes:
+      - shared-data:/data
+    networks:
+      # FIX 1: was `frontend`.
+      #
+      # Redis is on backend, so the worker could not resolve the name at all:
+      #   redis not ready (Error -2 connecting to redis:6379. Name does not resolve.)
+      #
+      # Note the worker did not crash -- it retried forever. A service that
+      # retries politely can be broken for hours without anyone noticing.
+      - backend
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      # FIX 5: there was no volume at all.
+      #
+      # The postgres image declares VOLUME /var/lib/postgresql/data, so Docker
+      # created a fresh ANONYMOUS volume on every `up` and `down` orphaned it.
+      # The data was never deleted -- it was stranded in a volume named with 64
+      # hex characters. Symptom: rows vanish across down/up.
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      # FIX 2 (other half): there was no healthcheck, so `condition:
+      # service_healthy` had nothing to wait on.
+      #
+      # pg_isready asks the question that matters: is the server accepting
+      # connections? A check that cannot fail teaches you nothing.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  pgdata:
+  shared-data:
+
+networks:
+  frontend:
+  backend:

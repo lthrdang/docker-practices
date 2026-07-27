@@ -1,0 +1,32 @@
+# Everything listed here is excluded from the build context -- the tarball the
+# CLI ships to the daemon before the build starts.
+#
+# Two reasons this file matters:
+#
+# 1. SPEED. Without it, `COPY . .` uploads and copies node_modules from your
+#    host. On this tiny project that is annoying; on a real one it is hundreds
+#    of megabytes on every single build.
+#
+# 2. SECRETS. Without it, `COPY . .` bakes your .env into an image layer. Layers
+#    are permanent: deleting the file in a later RUN does not remove it, it just
+#    hides it. Anyone who pulls the image can extract it with `docker history`
+#    or by unpacking the layer. Day 5 covers this properly.
+
+node_modules
+npm-debug.log
+.npm
+
+.env
+.env.*
+*.pem
+*.key
+
+.git
+.gitignore
+Dockerfile*
+.dockerignore
+*.md
+
+.vscode
+.idea
+.DS_Store

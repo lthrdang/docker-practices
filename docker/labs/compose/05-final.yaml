@@ -1,0 +1,112 @@
+# Step 5 — the complete system.
+#
+# Everything from the week: multi-stage images, named volumes, a shared volume
+# between two containers, two networks, healthchecks, ordered startup,
+# secrets from a file, and one published port.
+#
+#   cp .env.example .env
+#   docker compose -f 05-final.yaml up -d
+#   curl localhost:8080/ready
+#   curl -X POST -H 'content-type: application/json' -d '{"message":"hi"}' localhost:8080/jobs
+#   curl localhost:8080/files
+#
+# Scale the API and watch nginx round-robin:
+#   docker compose -f 05-final.yaml up -d --scale api=3
+#   for i in $(seq 6); do curl -s localhost:8080/whoami | head -c 60; echo; done
+
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    volumes:
+      - ../nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - frontend
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  api:
+    build: ../app-api
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379
+      DATA_DIR: /data
+    volumes:
+      # Shared with the worker. The worker writes result files here; the api
+      # serves them from GET /files. Day 3: inter-container communication with
+      # no network call between the two.
+      - shared-data:/data
+    networks:
+      - frontend
+      - backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+    # NOTE: no `container_name:`. Setting one would break `--scale` -- you
+    # cannot have three containers with the same name. Let Compose name them.
+
+  worker:
+    build: ../app-worker
+    environment:
+      REDIS_URL: redis://redis:6379
+      DATA_DIR: /data
+    volumes:
+      - shared-data:/data
+    networks:
+      # backend only. The worker has no reason to be reachable from the
+      # frontend tier.
+      - backend
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    # No volume, deliberately. Redis here is a cache and a queue in transit;
+    # losing it on restart is acceptable. "No volume" is a decision when you
+    # can say why -- and an accident when you cannot.
+
+volumes:
+  pgdata:
+  shared-data:
+
+networks:
+  frontend:
+  backend:

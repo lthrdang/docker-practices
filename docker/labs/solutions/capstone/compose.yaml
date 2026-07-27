@@ -1,0 +1,134 @@
+# Capstone reference solution -- base compose file.
+#
+# This is what a production-shaped file looks like: nothing in here is a
+# developer convenience. Everything that only makes sense on a laptop lives in
+# compose.override.yaml.
+#
+# Requirement IDs (R1..R19) refer to capstone.md.
+
+services:
+  # ---------------------------------------------------------------------------
+  # nginx -- the only thing published. R10.
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:alpine                      # pinned minor, not :latest
+    ports:
+      - "${HTTP_PORT:-8080}:80"              # R10, R12: the one published port
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro   # :ro -- nginx
+                                                                 # never writes
+                                                                 # its own config
+    networks:
+      - frontend                             # R9: frontend ONLY. nginx cannot
+                                             # even resolve `postgres`.
+    depends_on:
+      api:
+        condition: service_healthy           # R14
+    restart: unless-stopped                  # R16
+
+  # ---------------------------------------------------------------------------
+  # api -- the bridge between the two tiers. R9.
+  # ---------------------------------------------------------------------------
+  api:
+    build: ../../app-api                     # R1-R4 live in that Dockerfile:
+                                             # multi-stage, non-root, exec form,
+                                             # .dockerignore
+    image: capstone-api:1.0                  # explicit tag, not :latest
+    environment:
+      PGHOST: postgres                       # a SERVICE NAME, resolved by
+      PGUSER: ${POSTGRES_USER}               # Docker's embedded DNS
+      PGPASSWORD: ${POSTGRES_PASSWORD}       # R17: from .env, never literal
+      PGDATABASE: ${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379
+      DATA_DIR: /data
+    volumes:
+      - shared-data:/data                    # R6: the same volume the worker
+                                             # mounts. One volume, two
+                                             # containers -- that is the whole
+                                             # mechanism.
+    networks:
+      - frontend                             # R9: on BOTH. The only service
+      - backend                              # that needs to be.
+    depends_on:
+      postgres:
+        condition: service_healthy           # R14: wait for READY, not started
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+    # Deliberately NO `ports:`. The API is reached only through nginx.
+    # Deliberately NO `container_name:` -- it would break `--scale api=3`.
+    #
+    # The image's own HEALTHCHECK calls /health (liveness), not /ready
+    # (readiness). R15 -- see README.md for why that distinction matters.
+
+  # ---------------------------------------------------------------------------
+  # worker -- backend only. Nothing should reach it.
+  # ---------------------------------------------------------------------------
+  worker:
+    build: ../../app-worker
+    image: capstone-worker:1.0
+    environment:
+      REDIS_URL: redis://redis:6379
+      DATA_DIR: /data
+    volumes:
+      - shared-data:/data                    # R6: the other half of the pair
+    networks:
+      - backend
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # postgres -- data that must outlive everything.
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data      # R5: named volume. Without it the
+                                             # image's own VOLUME declaration
+                                             # makes a fresh ANONYMOUS volume
+                                             # on every `up`.
+    networks:
+      - backend                              # R9, R10: backend only, not
+                                             # published anywhere
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s                           # R13: pg_isready asks the real
+      timeout: 3s                            # question -- is the server
+      retries: 5                             # accepting connections?
+      start_period: 10s                      # grace window for a cold init
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # redis -- cache and job queue.
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    # No volume, ON PURPOSE. Cache plus in-transit jobs; losing it on restart
+    # is acceptable. "No volume" is a decision when you can say why, and an
+    # accident when you cannot. See README.md.
+
+volumes:
+  pgdata:
+  shared-data:
+
+networks:
+  frontend:
+  backend:
+    # internal: true would remove this network's route to the internet
+    # entirely. Left off because the worker may need outbound access, and the
+    # trade-off is written down in README.md rather than left implicit.

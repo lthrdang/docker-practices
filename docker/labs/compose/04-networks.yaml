@@ -1,0 +1,94 @@
+# Step 4 — the two-network isolation model, in Compose.
+#
+# This is Day 4 Exercise 6, written declaratively. Compare the two: eight
+# `docker run` commands and two `docker network create`s become this.
+#
+#   docker compose -f 04-networks.yaml up -d
+#   curl localhost:8080/ready
+#
+# Then verify the isolation:
+#   docker compose -f 04-networks.yaml exec nginx nslookup postgres   # fails
+#   docker compose -f 04-networks.yaml exec api   nslookup postgres   # works
+
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      # The ONLY published port in the whole stack.
+      - "8080:80"
+    volumes:
+      # Read-only: nginx has no business writing its own config. Day 3.
+      - ../nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      # frontend only. nginx cannot even RESOLVE the name `postgres`.
+      - frontend
+    depends_on:
+      api:
+        condition: service_healthy
+
+  api:
+    build: ../app-api
+    environment:
+      PGHOST: postgres
+      PGUSER: app
+      PGPASSWORD: app
+      PGDATABASE: app
+    networks:
+      # On BOTH. This is what makes the api the bridge between the tiers, and
+      # it is the only service that needs to be.
+      - frontend
+      - backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    # No `ports:`. The api is not published. nginx reaches it over the
+    # frontend network by service name. If you can only reach a service through
+    # the proxy, the proxy is the only thing you have to secure.
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  pgdata:
+
+networks:
+  frontend:
+  backend:
+    # `internal: true` means this network has NO route to the outside world --
+    # no NAT, no internet. It is the documented way to say "this tier does not
+    # talk to the internet", and it is enforced by Docker rather than by
+    # convention.
+    #
+    # Left commented because the api needs outbound access on `backend` in
+    # later steps. Uncomment it and run `docker compose exec postgres ping
+    # 1.1.1.1` to see the difference -- worth doing once.
+    #
+    # internal: true
+
+# WHY THIS SHAPE, once more:
+#
+#   * Compromise nginx and you still cannot reach the database -- the name does
+#     not resolve from there.
+#   * Postgres is published to nothing, so nothing outside your machine can
+#     reach it regardless of networks.
+#   * One published port means one thing to secure and one thing to monitor.
+#
+# And remember Day 4's caveat: name isolation is the boundary you DESIGN with.
+# Packet-level isolation between bridge networks is enforced by iptables and
+# varies between Docker versions and distributions. Never rely on it alone --
+# combine it with not publishing the port and with real credentials.
