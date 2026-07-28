@@ -1,8 +1,8 @@
 # Debug exam -- reference solution. Six fixes, marked FIX 1..6.
 #
 # Copy into the debug-exam directory to run it:
-#   cp ../../labs/solutions/debug-exam/compose.yaml .
-#   cp ../../labs/solutions/debug-exam/.env.example .env
+#   cp ../../instructor/solutions/debug-exam/compose.yaml .
+#   cp ../../instructor/solutions/debug-exam/.env.example .env
 
 services:
   nginx:

@@ -9,7 +9,7 @@ the WSL2 dry-run** (see the bottom of this file).
 
 ## What exists
 
-`trainings/docker/` — 28 markdown files (~43,000 words) + 36 lab files.
+`docker/` — 28 markdown files (~43,000 words) + 36 lab files.
 
 | | |
 |---|---|
@@ -19,10 +19,10 @@ the WSL2 dry-run** (see the bottom of this file).
 | **Day 3** Volumes | README + lab + homework + `homework-project/` (4 seeded defects) |
 | **Day 4** Networking | README + lab + homework |
 | **Day 5** Compose | README + lab + `capstone.md` + `debug-exam/` (6 seeded defects) |
-| **Reference** | `CHEATSHEET.md` · `TROUBLESHOOTING.md` · `ASSESSMENT.md` |
+| **Reference** | `CHEATSHEET.md` · `TROUBLESHOOTING.md` · `ASSESSMENT.md` (quiz + capstone/debug-exam prompts only — no answer key) |
 | **Lab app** | `labs/` — Node API, Python worker, nginx, `.gitattributes` |
 | **Compose** | `labs/compose/` — `01-single` → `05-final`, dev override, `.env.example` |
-| **Solutions** | `labs/solutions/` — day2, day3, capstone, debug-exam |
+| **Solutions** | `instructor/solutions/` — day2, day3, capstone, debug-exam |
 
 Assessment is 100 points: quiz 40 (30 questions, explained key) + capstone 30
 (100-point rubric, scaled) + debug exam 30.
@@ -89,7 +89,9 @@ executed and verified. The **WSL2↔Windows boundary** could not be, so those
 claims were written from Microsoft's and Docker's official docs and tagged
 `[NEEDS WSL2 DRY-RUN]` — **11 tags across 4 files**.
 
-**Checklist: the end of [`docker/WSL2-NOTES.md`](docker/WSL2-NOTES.md).**
+**Checklist: [`WSL2-DRY-RUN-CHECKLIST.md`](WSL2-DRY-RUN-CHECKLIST.md)** (moved
+out of `WSL2-NOTES.md` when instructor-only material was split from
+trainee-facing docs).
 
 Run it once on a Windows machine before Day 1 — ideally by following `SETUP.md`
 verbatim on a clean distro, which doubles as a rehearsal of the trainee
@@ -100,26 +102,31 @@ what Day 4 §5 and quiz answer 25 should say.
 
 ---
 
-## Open questions for the user
+## Open questions for the user — resolved 2026-07-27
 
-1. **Day 5 is ~6 hours.** If that does not suit, the capstone works as a
-   take-home reviewed the following week; the rubric is unchanged. Nothing else
-   needs editing.
-2. **Ubuntu is assumed** as the WSL distro. A different distro changes only the
-   package-manager section of `SETUP.md`.
-3. **No slide deck** was in scope. Say the word if the instructor wants one.
+1. **Day 5 length** — keeping as a full ~6 hour day. No changes.
+2. **WSL distro** — Ubuntu confirmed. No changes.
+3. **Slide deck** — out of scope, staying that way. No changes.
 
 ---
 
 ## Notes for anyone editing this later
 
+- **`instructor/` (this folder) is not for trainees.** It holds `PROGRESS.md`,
+  `ANSWER-KEY.md` (split out of `ASSESSMENT.md`), `WSL2-DRY-RUN-CHECKLIST.md`
+  (split out of `WSL2-NOTES.md`), and `solutions/`. Exclude this whole folder
+  when handing the repo to trainees — everything trainee-facing lives outside
+  it and has no dependency on it. Trainee-facing homework/capstone files point
+  to it with "ask your instructor" instead of a direct link.
 - `day2-images/homework-project/`, `day3-volumes/homework-project/` and
   `day5-compose-capstone/debug-exam/` are **deliberately broken**. Their defects
-  are documented in the matching `labs/solutions/*/README.md`.
-- Solution compose files use paths relative to the **exercise** directory —
-  copy them there, do not run from `solutions/`.
-- `labs/compose/.env` and `labs/solutions/capstone/.env` are gitignored; create
-  them with `cp .env.example .env`.
+  are documented in the matching `instructor/solutions/*/README.md`.
+- Solution compose files for day2/day3/debug-exam use paths relative to the
+  **exercise** directory — copy them there, do not run from `solutions/`. The
+  capstone solution is the exception: it runs in place from
+  `instructor/solutions/capstone/`.
+- `labs/compose/.env` and `instructor/solutions/capstone/.env` are gitignored;
+  create them with `cp .env.example .env`.
 - The API's `ensureSchema()` runs on both GET and POST `/users` on purpose, and
   `/ready` wraps each dependency check in a 3-second timeout — node-redis
   retries forever, so an unguarded `await redis.ping()` never settles and the

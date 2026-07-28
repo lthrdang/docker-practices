@@ -76,9 +76,8 @@ Fill in the After column and calculate the percentages.
 > A fixed Dockerfile with no numbers does not count. Measuring is half the
 > skill — a change you cannot measure is a change you cannot defend in review.
 
-The reference solution is in
-[`labs/solutions/day2-homework/`](../labs/solutions/day2-homework/). **Look
-only after you have your own numbers.**
+A reference solution exists. **Ask your instructor for it only after you have
+your own numbers.**
 
 ---
 

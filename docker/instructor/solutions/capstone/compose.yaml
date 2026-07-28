@@ -30,7 +30,7 @@ services:
   # api -- the bridge between the two tiers. R9.
   # ---------------------------------------------------------------------------
   api:
-    build: ../../app-api                     # R1-R4 live in that Dockerfile:
+    build: ../../../labs/app-api                     # R1-R4 live in that Dockerfile:
                                              # multi-stage, non-root, exec form,
                                              # .dockerignore
     image: capstone-api:1.0                  # explicit tag, not :latest
@@ -66,7 +66,7 @@ services:
   # worker -- backend only. Nothing should reach it.
   # ---------------------------------------------------------------------------
   worker:
-    build: ../../app-worker
+    build: ../../../labs/app-worker
     image: capstone-worker:1.0
     environment:
       REDIS_URL: redis://redis:6379

@@ -10,7 +10,7 @@ you can defend each choice, it is correct — and possibly better.
 ## Run it
 
 ```bash
-cd labs/solutions/capstone
+cd ~/projects/docker-training/instructor/solutions/capstone
 cp .env.example .env
 docker compose up -d --build
 curl localhost:8080/ready
@@ -23,8 +23,8 @@ docker compose down       # keeps the data
 docker compose down -v    # deletes the data
 ```
 
-> Build contexts point at `../../app-api` and `../../app-worker` — this
-> directory shares the lab application rather than duplicating it.
+> Build contexts point at `../../../labs/app-api` and `../../../labs/app-worker`
+> — this directory shares the lab application rather than duplicating it.
 
 ---
 
@@ -200,7 +200,7 @@ docker stop -> under 1s                             R4: exec form
 
 | | |
 |---|---|
-| `user: root` to make a permission error go away | Fails R2. The error was real; the fix is to make the volume writable by the app's user — see [`labs/app-worker/Dockerfile`](../../app-worker/Dockerfile). |
+| `user: root` to make a permission error go away | Fails R2. The error was real; the fix is to make the volume writable by the app's user — see [`labs/app-worker/Dockerfile`](../../../labs/app-worker/Dockerfile). |
 | Postgres published in the **base** file | Fails R10. Put it in the override, on `127.0.0.1`. |
 | Bind-mounting source in the **base** file | Fails R7's intent. Production runs the image, not your laptop's directory. |
 | `depends_on:` as a plain list | Fails R14. It waits for *started*, not *ready*. |

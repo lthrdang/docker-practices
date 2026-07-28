@@ -8,7 +8,7 @@ services:
     ports:
       - "3000:3000"          # reach the API without going through nginx
     volumes:
-      - ../../app-api:/app   # R7: live source, no rebuild on edit
+      - ../../../labs/app-api:/app   # R7: live source, no rebuild on edit
       - /app/node_modules    # R7: THE LINE PEOPLE FORGET.
                              #
                              # The bind mount above hides the image's entire
@@ -28,7 +28,7 @@ services:
 
   worker:
     volumes:
-      - ../../app-worker:/app
+      - ../../../labs/app-worker:/app
       - shared-data:/data
 
   postgres:

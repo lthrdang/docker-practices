@@ -7,7 +7,7 @@ To try it:
 ```bash
 cd ~/projects/docker-training/day3-volumes/homework-project
 cp compose.yaml compose.broken.bak                       # keep the original
-cp ../../labs/solutions/day3-homework/compose.yaml .
+cp ../../instructor/solutions/day3-homework/compose.yaml .
 docker compose down -v && docker compose up -d --build
 ```
 

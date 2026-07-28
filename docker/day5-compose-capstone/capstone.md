@@ -282,6 +282,6 @@ file — that is why you swapped every 30 minutes.
 
 ## Reference solution
 
-[`labs/solutions/capstone/`](../labs/solutions/capstone/) — **after** your demo,
+A reference solution exists — ask your instructor for it **after** your demo,
 not before. Your version does not have to match it. If you pass the acceptance
 test and can defend your choices, you are right, and possibly better.

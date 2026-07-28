@@ -10,8 +10,8 @@ To use them:
 
 ```bash
 cd ~/projects/docker-training/day2-images/homework-project
-cp ../../labs/solutions/day2-homework/Dockerfile.fixed .
-cp ../../labs/solutions/day2-homework/.dockerignore .
+cp ../../instructor/solutions/day2-homework/Dockerfile.fixed .
+cp ../../instructor/solutions/day2-homework/.dockerignore .
 docker build -f Dockerfile.fixed -t hw:after .
 ```
 

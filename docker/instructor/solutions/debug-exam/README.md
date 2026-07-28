@@ -5,8 +5,8 @@
 ```bash
 cd ~/projects/docker-training/day5-compose-capstone/debug-exam
 cp compose.yaml compose.broken.bak
-cp ../../labs/solutions/debug-exam/compose.yaml .
-cp ../../labs/solutions/debug-exam/.env.example .env
+cp ../../instructor/solutions/debug-exam/compose.yaml .
+cp ../../instructor/solutions/debug-exam/.env.example .env
 docker compose up -d --build
 ```
 

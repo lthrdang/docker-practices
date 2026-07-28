@@ -1,6 +1,6 @@
 # Day 3 homework -- reference solution.
 #
-# Read labs/solutions/day3-homework/README.md alongside this for the reasoning.
+# Read instructor/solutions/day3-homework/README.md alongside this for the reasoning.
 
 services:
   api:

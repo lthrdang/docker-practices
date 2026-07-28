@@ -102,9 +102,8 @@ docker compose down -v
    mount type did you choose and why?** That question is the actual point of
    the homework.
 
-Reference solution:
-[`labs/solutions/day3-homework/`](../labs/solutions/day3-homework/). Look after
-you have your own answer.
+A reference solution exists. Ask your instructor for it after you have your
+own answer.
 
 ---
 
