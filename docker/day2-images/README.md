@@ -40,10 +40,10 @@ Three consequences that explain almost everything:
    anyone can extract it.
 3. **Layer order determines rebuild speed.** Which is the next section.
 
-Look at a real stack:
+Look at a real stack — the base image from the diagram above:
 
 ```bash
-docker history training-api:ref
+docker history node:22-alpine
 ```
 
 ---
@@ -323,7 +323,7 @@ shebang reads `#!/bin/sh\r`. Linux looks for an interpreter literally named
 `/bin/sh\r`, does not find it, and reports:
 
 ```
-exec /app/entrypoint.sh: no such file or directory
+exec ./entrypoint.sh: no such file or directory
 ```
 
 ...about a file that is visibly present. The message is about the *interpreter*,

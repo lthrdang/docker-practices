@@ -51,7 +51,7 @@ on the slow path.
 machine:
 
 ```
-exec /app/entrypoint.sh: no such file or directory
+exec ./entrypoint.sh: no such file or directory
 ```
 ```
 standard_init_linux.go: exec user process caused: exec format error

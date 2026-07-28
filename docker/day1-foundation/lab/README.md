@@ -192,6 +192,10 @@ kill <that number>
 docker ps -a --filter name=proof
 ```
 
+> If that reports `Operation not permitted`, use `sudo kill <that number>`
+> instead. Docker runs container processes as root on the host by default,
+> even though your own shell user is only in the `docker` group.
+
 The container is `Exited`. **You did not stop a container — you killed a
 process, and the container ceased to exist as a consequence.** Because that is
 all it ever was.
@@ -205,9 +209,14 @@ docker rm proof
 ## Exercise 5 — Watch a cgroup enforce a limit (15 min)
 
 ```bash
-docker run --name oomtest --memory=100m alpine \
+docker run --name oomtest --memory=100m --shm-size=200m alpine \
   sh -c 'dd if=/dev/zero of=/dev/shm/fill bs=1M count=500'
 ```
+
+> `--shm-size` matters here: `/dev/shm` defaults to 64 MB regardless of
+> `--memory`, and without raising it `dd` hits that tmpfs ceiling first —
+> `No space left on device`, not an OOM kill — before the cgroup memory limit
+> ever gets a chance to trigger.
 
 It dies partway through. Ask why:
 
@@ -323,7 +332,7 @@ That is a lot of JSON. Learn to query it instead of scrolling:
 ```bash
 docker inspect web --format '{{.State.Status}}'
 docker inspect web --format '{{.Config.Image}}'
-docker inspect web --format '{{.NetworkSettings.IPAddress}}'
+docker inspect web --format '{{.NetworkSettings.Networks.bridge.IPAddress}}'
 docker inspect web --format '{{json .NetworkSettings.Ports}}'
 docker inspect web --format '{{.State.Pid}}'
 docker inspect web --format '{{json .Mounts}}'

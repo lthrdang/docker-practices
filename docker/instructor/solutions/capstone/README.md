@@ -23,8 +23,11 @@ docker compose down       # keeps the data
 docker compose down -v    # deletes the data
 ```
 
-> Build contexts point at `../../../labs/app-api` and `../../../labs/app-worker`
-> — this directory shares the lab application rather than duplicating it.
+> `api/` and `worker/` hold their own `Dockerfile` plus source copied from
+> `labs/app-api/` and `labs/app-worker/` — written fresh, not reused, per
+> capstone.md's R1–R4. Only the application source (`server.js`, `worker.py`,
+> etc.) is shared; the Dockerfiles here happen to end up identical to the
+> lab's finished ones because that's what a correct one looks like.
 
 ---
 
@@ -200,7 +203,7 @@ docker stop -> under 1s                             R4: exec form
 
 | | |
 |---|---|
-| `user: root` to make a permission error go away | Fails R2. The error was real; the fix is to make the volume writable by the app's user — see [`labs/app-worker/Dockerfile`](../../../labs/app-worker/Dockerfile). |
+| `user: root` to make a permission error go away | Fails R2. The error was real; the fix is to make the volume writable by the app's user — see [`worker/Dockerfile`](worker/Dockerfile). |
 | Postgres published in the **base** file | Fails R10. Put it in the override, on `127.0.0.1`. |
 | Bind-mounting source in the **base** file | Fails R7's intent. Production runs the image, not your laptop's directory. |
 | `depends_on:` as a plain list | Fails R14. It waits for *started*, not *ready*. |

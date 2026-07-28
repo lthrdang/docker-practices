@@ -81,7 +81,7 @@ Everything here uses `docker compose`. If a tutorial uses the hyphen, it is old
 
 ## Build & images
 
-### `exec /app/entrypoint.sh: no such file or directory` — but the file is there
+### `exec ./entrypoint.sh: no such file or directory` — but the file is there
 
 Or: `standard_init_linux.go: exec user process caused: exec format error`.
 
@@ -389,9 +389,11 @@ proxying to the wrong port; the backend is still starting.
 
 ### `--scale api=3` works but one replica gets all the traffic
 
-**Cause.** Not Docker. **nginx resolved the name once at startup and cached
-it.** Docker's DNS is correctly returning three addresses; nginx never asked
-again.
+**Cause.** Not Docker. **nginx resolved the name once, at its own last
+start/reload, and cached it.** Docker's DNS is correctly returning three
+addresses; nginx never asked again. This bites hardest when nginx started (or
+last reloaded) *before* you scaled up — restarting nginx after scaling makes
+it re-resolve and pick up every replica that already exists at that moment.
 
 **Fix.** Force per-request resolution with a variable in `proxy_pass`:
 

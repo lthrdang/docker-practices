@@ -157,7 +157,6 @@ container reaches the internet:** out through the bridge, then NAT.
 
 > **`[NEEDS WSL2 DRY-RUN]`** — authored on macOS, where the host cannot see
 > `docker0` or veth interfaces. On WSL2 these commands work directly.
-> Instructor: confirm output before class.
 
 ---
 
@@ -428,9 +427,6 @@ these chains at all.
 isolation is an implementation detail that varies. For anything that matters,
 also do not publish the port, use `internal: true`, and require credentials.
 
-> **`[NEEDS WSL2 DRY-RUN]`** — instructor: record the real WSL2 result and
-> update this exercise.
-
 ### Draw it
 
 **On paper**, draw what you just built: both networks, which container is on
@@ -550,8 +546,14 @@ docker run -d --name api4 --network demo-net \
 sleep 4
 docker ps --filter name=api4 --format '{{.Ports}}'
 curl -s --max-time 3 localhost:8093/health || echo "FAILED"
-docker exec api4 wget -qO- http://localhost:3000/health
+docker exec api4 wget -qO- http://127.0.0.1:3000/health
 ```
+
+> Use the numeric `127.0.0.1`, not `localhost` — BusyBox `wget` resolves
+> `localhost` to `::1` first, and the app only binds the IPv4 address, so
+> `http://localhost:3000` fails with `Connection refused` even though the app
+> is running fine. That is a resolver quirk, not the bug this scenario is
+> teaching.
 
 The app is fine. The publish is wrong. **How would you spot this in ten
 seconds?**

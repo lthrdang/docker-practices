@@ -355,6 +355,13 @@ Three addresses for one name.
 
 ### Now break the load balancing
 
+The bug needs a specific order to show up: nginx has to resolve the name
+*before* the extra replicas exist. Scale back down first:
+
+```bash
+docker compose -f 05-final.yaml up -d --scale api=1
+```
+
 ```bash
 cp ../nginx/default.conf ../nginx/default.conf.bak
 ```
@@ -372,19 +379,37 @@ with the "obvious" version:
         proxy_pass http://api:3000;
 ```
 
-and delete the `resolver` line. Then:
+and delete the `resolver` line. Then restart nginx **while there is still only
+one `api` replica**, so it resolves and caches that one address:
 
 ```bash
 docker compose -f 05-final.yaml restart nginx
-sleep 5
+sleep 3
+```
+
+Now scale up — **without touching nginx again**:
+
+```bash
+docker compose -f 05-final.yaml up -d --scale api=3
+sleep 18
 for i in $(seq 9); do
   curl -s localhost:8080/whoami | python3 -c 'import sys,json;print(json.load(sys.stdin)["hostname"])'
 done | sort | uniq -c
 ```
 
-**All nine hit the same replica.** Docker's DNS is still returning three
-addresses — nginx resolved the name once at startup, cached it, and never
-looked again.
+**All nine hit the same replica** — the one that existed when nginx last
+resolved the name. The two new replicas are healthy, in the compose output,
+behind the load balancer conceptually — and getting zero traffic, because
+nginx resolved `api` once at its own startup, cached that single address, and
+never looked again.
+
+> If you restart nginx *after* scaling to three, this doesn't reproduce: nginx
+> resolves fresh at every restart, sees all three replicas at that moment, and
+> spreads traffic across them even with the broken config. The bug isn't
+> "nginx never re-resolves" — it's "nginx only resolves at its own
+> start/reload, so replicas added afterward are invisible to it." That is
+> exactly how it bites in production: nobody restarts the proxy every time
+> they scale.
 
 Restore it:
 

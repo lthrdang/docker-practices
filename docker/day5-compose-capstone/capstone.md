@@ -34,10 +34,18 @@ Windows browser
                      └────── shared volume ─────────┘
 ```
 
-Source for the API and worker is in
+Application source — `server.js`/`package.json` for the API,
+`worker.py`/`requirements.txt` for the worker — is in
 [`labs/app-api/`](../labs/app-api/) and [`labs/app-worker/`](../labs/app-worker/).
-**You are not writing application code.** You are writing the Dockerfile(s) and
-the compose file.
+**You are not writing application code. You are writing the Dockerfile(s) and
+the compose file.**
+
+**Copy the source files into your own `api/` and `worker/` directories — not
+the `Dockerfile`s that are already sitting next to them.** Those are the
+finished reference from Day 2, shown so you'd know what one looks like once
+built; pointing `build:` straight at `labs/app-api/` reuses that finished
+Dockerfile and skips the R1–R4 work entirely. Write your own from a blank
+file, the same way you did for the Day 2 homework.
 
 ### Deliverables
 
@@ -48,6 +56,14 @@ capstone/
 ├── .env.example              # committed
 ├── .env                      # NOT committed
 ├── .gitignore
+├── api/
+│   ├── Dockerfile            # yours, written from scratch
+│   ├── server.js             # copied from labs/app-api/
+│   └── package.json
+├── worker/
+│   ├── Dockerfile            # yours, written from scratch
+│   ├── worker.py             # copied from labs/app-worker/
+│   └── requirements.txt
 ├── nginx/default.conf
 └── README.md                 # one command to run it
 ```
